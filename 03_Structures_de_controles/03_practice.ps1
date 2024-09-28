@@ -26,10 +26,11 @@ Write-Output "`n"
 
 # Exercice 3 : Vérifier les Utilisateurs dans un Tableau
 # Objectif : Créer un tableau contenant des noms d'utilisateurs. Utiliser une boucle pour vérifier si ces utilisateurs sont actuellement connectés.
+Write-Output "Exercice 3"
 
 $TabUtilisateurs = Get-LocalUser | Select-Object -Property Name, Enabled
 
-foreach ($Utilisateur in $Utilisateurs) {
+foreach ($Utilisateur in $TabUtilisateurs) {
    if ($Utilisateur.Enabled -eq 'True') {
      Write-Output $Utilisateur 
    }
