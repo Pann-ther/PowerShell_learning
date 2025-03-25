@@ -118,13 +118,6 @@ foreach($u in $file){
     $user = [User]::new($prenom,$nom,$pswd,$groupe,$path)
     $user.createUser()
     $user.addGroupUser()
-    Get-ADGroupMember -Identity Techniciens
+    Get-ADGroupMember -Identity $groupe
 }
 
-#$user1.createUser()
-#$user1.addGroupUser()
-#$user1.removeUser()
-
-
-#OU=G3,DC=lab,DC=lan
-#CN=Techniciens,DC=lab,DC=lan
