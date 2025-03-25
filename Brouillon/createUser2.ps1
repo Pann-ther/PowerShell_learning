@@ -9,11 +9,13 @@
     [string]$path
 
 
-    User([string]$prenom, [string]$nom, [string]$pswd){
+    User([string]$prenom, [string]$nom, [string]$pswd,[string]$groupe, [string]$path){
         $this.prenom = $prenom
         $this.nom = $nom
         $this.login = $this.prenom.Substring(0,1)+$this.nom
         $this.pswd = $pswd
+        $this.groupe = $groupe
+        $this.path = $path
     }
 
     [void]createOU(){
@@ -45,13 +47,12 @@
     [void]createUser(){
         $this.userExists()
         if(-not $this.exist){
-            $ouUser = Read-Host "Entrez le chemin de l'OU dans lequel l'utilisateur sera ajoute"
-            if(Get-ADOrganizationalUnit -Filter {distinguishedName -eq $ouUser}){
+            if(Get-ADOrganizationalUnit -Filter {distinguishedName -eq $this.path}){
                 try{
-                    New-ADUser -GivenName $this.prenom -Name $this.nom -SamAccountName $this.login -path $ouUser -AccountPassword (ConvertTo-SecureString $this.pswd -AsPlainText -Force) -ErrorAction Stop
+                    New-ADUser -GivenName $this.prenom -Name $this.nom -SamAccountName $this.login -path $this.path -AccountPassword (ConvertTo-SecureString $this.pswd -AsPlainText -Force) -ErrorAction Stop
                     Write-Host "L'utilisateur a ete cree avec succes"
                 }catch{
-                    Write-Host "L'utilisateur n'a pas pu etre cree"
+                    Write-Host "L'utilisateur"
                 }      
             }else{
                 Write-Host "L'OU n'existe pas, l'utilisateur n'a pas ete cree. Entrez le chemin d'un OU existant"
@@ -89,7 +90,6 @@
     }
 
     [void]addGroupUser(){
-        $this.groupe = Read-Host "Entrez le nom du groupe dans lequel l'utilisateur sera ajouté"
         if(-not (Get-ADGroupMember -Identity $this.groupe | Where-Object {$_.SamAccountName -eq $this.login})){
             if(Get-ADGroup -Filter {name -eq $this.groupe}){
                 try{
@@ -107,11 +107,22 @@
     }
 }
 
+$file = Import-Csv "C:\Shares\Scripts_powershell\users.csv" -Delimiter ";"
 
-$user1 = [User]::new("John","Doe","P@ssw0rd")
+foreach($u in $file){
+    $prenom = $u.prenom
+    $nom = $u.nom
+    $pswd = $u.mdp
+    $groupe = $u.groupe
+    $path = $u.path
+    $user = [User]::new($prenom,$nom,$pswd,$groupe,$path)
+    $user.createUser()
+    $user.addGroupUser()
+    Get-ADGroupMember -Identity Techniciens
+}
 
-$user1.createUser()
-$user1.addGroupUser()
+#$user1.createUser()
+#$user1.addGroupUser()
 #$user1.removeUser()
 
 
