@@ -1,21 +1,38 @@
 ﻿class User {
     [string]$prenom
     [string]$nom 
+    [string]$cn
     [string]$login 
     [string]$pswd 
     [string]$groupe
     [bool]$enabled
     [bool]$exist
     [string]$path
+    [string]$log
 
 
-    User([string]$prenom, [string]$nom, [string]$pswd,[string]$groupe, [string]$path){
+    User([string]$prenom, [string]$nom, [string]$pswd,[string]$groupe, [string]$path, [string]$log){
         $this.prenom = $prenom
         $this.nom = $nom
-        $this.login = $this.prenom.Substring(0,1)+$this.nom
+        $this.cn = "$($this.prenom) $($this.nom)"
+        $this.login = $($this.prenom.Substring(0,1)+$this.nom).ToLower()
         $this.pswd = $pswd
         $this.groupe = $groupe
         $this.path = $path
+        $this.log = $log
+
+        #Verifie si un user a deja le meme login
+        $index = 1
+        while (Get-ADUser -Filter {SamAccountName -eq $this.login}) {
+            $this.login = $this.login+$index
+            $this.cn = $this.cn+$index
+            $index++
+        }
+    }
+
+    [void]addLog([string]$message){
+        $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        "$date - $message" | Out-File -FilePath $this.log  -Append -Encoding utf8
     }
 
     [void]createOU(){
@@ -27,10 +44,10 @@
         }else{
             try {
                 New-ADOrganizationalUnit -Name $ou -Path $pathOU -ErrorAction Stop
-                Write-Host "L'OU $ou a ete cree avec succes"
+                $this.addLog("INFO: l'OU $ou a ete cree avec succes") 
             }
             catch {
-                Write-Host "L'OU n'a pas pu etre cree, veuillez rentrez un chemin valide "
+                $this.addLog("ERROR: l'OU $ou n'a pas pu etre cree, veuillez rentrez un chemin valide ") 
             }
         }
     }
@@ -49,25 +66,25 @@
         if(-not $this.exist){
             if(Get-ADOrganizationalUnit -Filter {distinguishedName -eq $this.path}){
                 try{
-                    New-ADUser -GivenName $this.prenom -Name $this.nom -SamAccountName $this.login -path $this.path -AccountPassword (ConvertTo-SecureString $this.pswd -AsPlainText -Force) -ErrorAction Stop
-                    Write-Host "L'utilisateur a ete cree avec succes"
+                    New-ADUser -GivenName $this.prenom -Surname $this.nom -Name $this.cn -SamAccountName $this.login -path $this.path -AccountPassword (ConvertTo-SecureString $this.pswd -AsPlainText -Force) -ErrorAction Stop
+                    $this.addLog("INFO: l'utilisateur $($this.login) a ete cree avec succes")
                 }catch{
-                    Write-Host "L'utilisateur"
+                    $this.addLog("ERROR: l'utilisateur $($this.login) n'a pas pu etre cree $($_.Exception.Message)") 
                 }      
             }else{
-                Write-Host "L'OU n'existe pas, l'utilisateur n'a pas ete cree. Entrez le chemin d'un OU existant"
+                $this.addLog("ERROR: l'OU n'existe pas, l'utilisateur n'a pas ete cree. Entrez le chemin d'un OU existant") 
             }
         } else{
-            Write-Host "L'utilisateur est deja existant"
+            $this.addLog("EEROR: l'utilisateur $($this.login) est deja existant") 
         }
     }
 
     [void]removeUser(){
         try{
             Remove-ADUser -Identity $this.login -Confirm:$false -ErrorAction Stop
-            Write-Host "L'utilisateur ete supprime avec succes"
+            $this.addLog("INFO: l'utilisateur ete supprime avec succes") 
         }catch{
-            Write-Host "L'utilisateur n'a pas ete trouve, la suppression ne s'est pas effectuee"
+            $this.addLog("ERROR: l'utilisateur $($this.login) n'a pas ete trouve, la suppression ne s'est pas effectuee") 
         }
     }
 
@@ -76,7 +93,7 @@
         try{
             Set-ADUser -Identity $this.prenom -Enabled $true -ErrorAction Stop
         }catch{
-            Write-Host "L'utilisateur n'a pas ete trouve"
+            $this.addLog("ERROR: l'utilisateur $($this.login) n'a pas ete trouve")
         }
     }
 
@@ -85,7 +102,7 @@
         try{
             Set-ADUser -Identity $this.prenom -Enabled $false -ErrorAction Stop
         }catch{
-            Write-Host "L'utilisateur n'a pas ete trouve"
+            $this.addLog("ERROR: l'utilisateur $($this.login) n'a pas ete trouve") 
         }
     }
 
@@ -94,20 +111,21 @@
             if(Get-ADGroup -Filter {name -eq $this.groupe}){
                 try{
                     Add-ADGroupMember -Identity $this.groupe -Members $this.login
-                    Write-Host "Utilisateur $($this.login) a ete ajoute avec succes dans le groupe $($this.groupe)"
+                    $this.addLog("INFO: Utilisateur $($this.login) a ete ajoute avec succes dans le groupe $($this.groupe)")
                 }catch{
-                    Write-Host "L'utilisateur n'a pas pu etre ajoute au groupe"
+                    $this.addLog("ERROR: l'utilisateur $($this.login) n'a pas pu etre ajoute au groupe") 
                 }
             }else{
-                Write-Host "Ce groupe n'existe pas"
+                $this.addLog("ERROR: le groupe $($this.groupe) n'existe pas") 
             }
         }else{
-            Write-Host "L'utilisateur fait deja partie de ce groupe"
+            $this.addLog("ERROR: l'utilisateur $($this.login) fait deja partie du groupe $($this.groupe)") 
         }
     }
 }
 
 $file = Import-Csv "C:\Shares\Scripts_powershell\users.csv" -Delimiter ";"
+$logfile = "C:\Shares\Scripts_powershell\logCreateUser.txt"
 
 foreach($u in $file){
     $prenom = $u.prenom
@@ -115,9 +133,10 @@ foreach($u in $file){
     $pswd = $u.mdp
     $groupe = $u.groupe
     $path = $u.path
-    $user = [User]::new($prenom,$nom,$pswd,$groupe,$path)
+
+    $user = [User]::new($prenom,$nom,$pswd,$groupe,$path,$logfile)
     $user.createUser()
     $user.addGroupUser()
-    Get-ADGroupMember -Identity $groupe
 }
+
 
