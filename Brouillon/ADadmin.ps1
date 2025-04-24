@@ -1,22 +1,19 @@
 class ADadmin {
     [object[]]$file
     [string]$ouCreationPath
-    [string]$groupPath
+    [string]$ouGroupPath
     
-    ADadmin([object[]]$file, [string]$ouCreationPath, [string]$groupPath) {
-        if (-not (Test-Path $file )) {
-            throw "Le chemin n'existe pas" 
-        }
-        elseif (-not (Get-ADOrganizationalUnit -Identity $ouCreationPath -ErrorAction SilentlyContinue)) {
-            throw "Le chemin de creation de l'OU n'existe pas"
-        }
+    ADadmin([object[]]$file, [string]$ouCreationPath, [string]$ouGroupPath) {
+        if (-not (Test-Path $file )) {}
+        if (-not (Get-ADOrganizationalUnit -Identity $ouCreationPath )) {}
+        if (-not (Get-ADOrganizationalUnit -Identity $ouGroupPath )) {}
         $this.file = Import-Csv $file
         $this.ouCreationPath = $ouCreationPath
-        $this.groupPath = $groupPath
+        $this.ouGroupPath = $ouGroupPath
     }
 
 
-# Gestion du programme
+    # Gestion du programme
     # Validation des chemins
     [bool] validationPathCsv($pathCsv) {
         if ((Test-Path $pathCsv) -and ([System.IO.Path]::GetExtension($pathCsv) -eq ".csv")) {
@@ -54,7 +51,7 @@ class ADadmin {
         Write-Host "2. Chemin de creation des OU"
         Write-Host "3. Chemin de creation des Groupes"
         Write-Host "4. Retour au menu d'action"
-        $choix = [int](Read-Host "Votre choix: ")
+        $choix = [int](Read-Host "Votre choix")
         return $choix
     }
     
@@ -64,7 +61,7 @@ class ADadmin {
         Write-Host "2. Supprimer la arborescence"
         Write-Host "3. Configuration des chemins"
         Write-Host "4. Quitter le programme"
-        $choix = [int](Read-Host "Votre choix: ")
+        $choix = [int](Read-Host "Votre choix")
         return $choix
     }
 
@@ -109,7 +106,7 @@ class ADadmin {
                     while ($true) {
                         $path = Read-Host "Entrez le chemin de l'OU pour la creation des OU"
                         if ($this.validationPathCreationGroupe($path)) {
-                            $this.groupPath = $path
+                            $this.ouGroupPath = $path
                             Write-Host "Le chemin est valide"
                             break
                         }
@@ -251,7 +248,7 @@ class ADadmin {
             $group = Get-ADGroup -Identity $service 
         }
         catch {
-            New-ADGroup -Name $service -GroupScope Global -GroupCategory Distribution -Path $this.groupPath
+            New-ADGroup -Name $service -GroupScope Global -GroupCategory Distribution -Path $this.ouGroupPath
         }
     }
 
@@ -274,10 +271,17 @@ class ADadmin {
 }
 
 #Execution du programme
-$filePath = read-host "Entrez le chemin du fichier csv qui contient les données des users"
-$ouCreationPath = read-host "Entrez le chemin où seront crée les OU correpondant au services"
-$groupPath = read-host "Entrez le chemin où seront crée les groupes correspondant au services"
-Start-sleep -seconds 1
+do{
+    try{
+        $filePath = read-host "Entrez le chemin du fichier csv qui contient les donnees des users"
+        $ouCreationPath = read-host "Entrez le chemin ou seront cree les OU correpondant au services"
+        $ouGroupPath = read-host "Entrez le chemin ou seront cree les groupes correspondant au services"
+        $srvADDS = [ADadmin]::new($filePath, $ouCreationPath, $ouGroupPath)
+        Write-Host "Les chemins sont valides" -ForegroundColor Green
+    } catch {
+        Write-Host "Chemins invalides" -ForegroundColor Red
+    }
+} while ($srvADDS -eq $null)
+Start-Sleep -Seconds 1
 Clear-Host
-$srvADDS = [ADadmin]::new($filePath, $ouCreationPath, $groupPath)
-$srvADDS.choixAction()
+$srvADDS.choixAction() 
