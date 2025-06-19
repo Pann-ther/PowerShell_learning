@@ -101,7 +101,7 @@ class ADadmin {
 }
 
 #Execution du programme
-$filePath =  "C:\Scripts\Ps\test.csv" #read-host "Entrez le chemin du fichier csv qui contient les données des users"
+$filePath =  "C:\Users\Administrateur\csv\LabCorp_SA.csv" #read-host "Entrez le chemin du fichier csv qui contient les données des users"
 $ouCreationPath = "OU=UO,OU=Lab,DC=lab,DC=local"  #read-host "Entrez le chemin où seront crée les OU correpondant au services"
 $groupPath = "OU=Group,OU=Lab,DC=lab,DC=local" #read-host "Entrez le chemin où seront crée les groupes correspondant au services"
 $srvADDS = [ADadmin]::new($filePath,$ouCreationPath,$groupPath)
